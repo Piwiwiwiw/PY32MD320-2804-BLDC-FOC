@@ -1,0 +1,26 @@
+./output/foc.o: ..\Src\FOC.c ..\Inc\FOC.h ..\Inc\main.h \
+  E:\Arm\Keil\ARM\ARMCLANG\Bin\..\include\stdint.h \
+  E:\Arm\Keil\ARM\ARMCLANG\Bin\..\include\stdlib.h \
+  E:\Arm\Keil\ARM\ARMCLANG\Bin\..\include\string.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_ll_rcc.h \
+  ..\..\..\Drivers\CMSIS\Device\PY32MD3xx\Include\py32md3xx.h \
+  ..\..\..\Drivers\CMSIS\Device\PY32MD3xx\Include\py32md320x8.h \
+  E:\Arm\packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include\core_cm0plus.h \
+  E:\Arm\packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include\cmsis_version.h \
+  E:\Arm\packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include\cmsis_compiler.h \
+  E:\Arm\packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include\cmsis_armclang.h \
+  E:\Arm\Keil\ARM\ARMCLANG\Bin\..\include\arm_acle.h \
+  E:\Arm\packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include\.\m-profile\cmsis_armclang_m.h \
+  ..\..\..\Drivers\CMSIS\Device\PY32MD3xx\Include\system_py32md3xx.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_ll_bus.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_ll_system.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_ll_cortex.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_ll_utils.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_ll_pwr.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_ll_dma.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_ll_gpio.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_ll_spi.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_ll_tim.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_ll_usart.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_ll_flash.h \
+  ..\Inc\FOC.h ..\Inc\trig_q15_func.h

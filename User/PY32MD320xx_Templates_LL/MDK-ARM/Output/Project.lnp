@@ -1,0 +1,27 @@
+--cpu Cortex-M0+
+".\output\system_py32md3xx.o"
+".\output\startup_py32md320xx.o"
+".\output\main.o"
+".\output\py32md3xx_it.o"
+".\output\foc.o"
+".\output\trig_q15_func.o"
+".\output\py32md3xx_ll_utils.o"
+".\output\py32md3xx_ll_adc.o"
+".\output\py32md3xx_ll_comp.o"
+".\output\py32md3xx_ll_crc.o"
+".\output\py32md3xx_ll_dma.o"
+".\output\py32md3xx_ll_exti.o"
+".\output\py32md3xx_ll_gpio.o"
+".\output\py32md3xx_ll_i2c.o"
+".\output\py32md3xx_ll_led.o"
+".\output\py32md3xx_ll_lptim.o"
+".\output\py32md3xx_ll_pwr.o"
+".\output\py32md3xx_ll_rcc.o"
+".\output\py32md3xx_ll_rtc.o"
+".\output\py32md3xx_ll_spi.o"
+".\output\py32md3xx_ll_tim.o"
+".\output\py32md3xx_ll_usart.o"
+--library_type=microlib --strict --scatter ".\Output\Project.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list ".\Output\Project.map" -o .\Output\Project.axf
