@@ -5,8 +5,8 @@ static const uint8_t sector_lookup[8] = {0, 2, 6, 1, 4, 3 ,5 ,0};
 static uint16_t level_u, level_v, level_w; 
 static uint16_t factor, X, Y ,Z, T1, T2, T0;
 static uint8_t sector, final_sector;
-
-
+extern MotorConf conf;
+extern MotorParams motor;
 
 
 
@@ -92,4 +92,12 @@ void set_PWM_level(Q15 Ualpha, Q15 Ubeta){
 		LL_TIM_OC_SetCompareCH2(TIM1, level_v);
 		LL_TIM_OC_SetCompareCH3(TIM1, level_w);
 	
+}
+
+void setZero(void){
+		motor.pos = Read_encoder();
+		motor.pos_Prev = motor.pos;
+		motor.step_dpos = motor.pos - conf.m_zero; 
+		motor.total_pos = motor.step_dpos > 8192 ? motor.step_dpos - 0x3FFF : motor.step_dpos < - 8192 ? motor.step_dpos + 0x3FFF :motor.step_dpos;
+		motor.total_pos_prev = motor.total_pos_prev;
 }

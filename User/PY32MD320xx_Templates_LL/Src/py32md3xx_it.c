@@ -45,22 +45,14 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-	CommandStruct CommandBuffer[2] = {0};
-	uint8_t BufferActivated = 1;
-	uint8_t BufferRecieve = 0;
-	
-	
-
-	uint16_t encoder_prev = 0;
+	CommandStruct CommandBuffer = {0};
 	uint8_t  Speed_subCounter = 0; 
-	
 	int16_t d_raw_angle = 0;
 	int8_t sign = 0;
 	uint16_t electric_angle = 0;
 	
-	MotorParams motor = {0};
-	MotorConf conf = {0};
-	
+	extern MotorConf conf;
+	extern MotorParams motor;
 	PI_Controller speed = {0};
 	PI_Controller position = {0};
 /* Private function prototypes -----------------------------------------------*/
@@ -116,29 +108,42 @@ void TIM1_BRK_UP_TRG_COM_IRQHandler(void){
 		LL_TIM_ClearFlag_UPDATE(TIM1);
 		//encoder proc
 		motor.pos = Read_encoder();
+		motor.step_dpos = motor.pos - motor.pos_Prev;
+		motor.pos_Prev = motor.pos;
+		motor.total_pos += motor.step_dpos > 8192 ? motor.step_dpos - 0x3FFF : motor.step_dpos < - 8192 ? motor.step_dpos + 0x3FFF :motor.step_dpos;
+		
+		
 		Speed_subCounter ++;
-		if(Speed_subCounter == 32){
+		if(Speed_subCounter == 16){
 			Speed_subCounter = 0;
-			motor.speed = motor.pos - encoder_prev;
-			encoder_prev = motor.pos;
-			motor.speed += (motor.speed < -8192) ? 16383 : (motor.speed > 8192)  ? -16383: 0;	
+			motor.speed = motor.total_pos - motor.total_pos_prev;
+			motor.total_pos_prev = motor.total_pos;
 			sign = (motor.speed > 0) ? 1 : -1;
 			d_raw_angle = (motor.speed > 0) ? motor.speed : - motor.speed;
-			d_raw_angle = sign * (d_raw_angle >> 5);
+			d_raw_angle = sign * (d_raw_angle >> 4);
 		//CMD proc;
 			
 			
-		switch(CommandBuffer[BufferActivated].Command){
+		switch(motor.mode){
 			case 0xC2: 
-				position.P = motor.target_pos - motor.pos;
-				position.P += (position.P < - 8192) ? 16383 : (position.P > 8192) ? -16383 : 0;
-				if(! ( (position.PI >= speed_limit && position.P > 0) || (position.PI <= -speed_limit && position.P < 0) )){
+				if(conf.p_edge || conf.n_edge){
+					position.P = motor.target_pos - motor.total_pos;
+				}
+				else{
+					position.P = motor.target_pos + conf.m_zero - motor.pos;
+				  position.P += (position.P < - 8192) ? 16383 : (position.P > 8192) ? -16383 : 0;
+				}
+
+				if(! ( (position.PI >= speed_limit && position.P > 0) || (position.PI <= -speed_limit && position.P < 0) ))
+				{
 					position.I += Q15_Multiply(position.Ki, position.P);
 				}
 				position.P = Q15_Multiply(position.P, position.Kp);
 				position.PI = position.P + position.I;
 				position.PI = (position.PI > speed_limit) ? speed_limit : (position.PI < -speed_limit) ? -speed_limit : position.PI; 
 				motor.target_speed = position.PI;  
+
+
 				//Fall-through
 			case 0xC1:
 				speed.P = motor.speed - motor.target_speed;
@@ -151,7 +156,7 @@ void TIM1_BRK_UP_TRG_COM_IRQHandler(void){
 				motor.Iq = speed.PI;
 				break;
 			case 0xC0:
-				motor.Iq = Q15_Multiply(CommandBuffer[BufferActivated].Value, Q15_P577);
+				motor.Iq = Q15_Multiply(motor.Uq, Q15_P577);
 				break;
 			default:
 				break;
@@ -159,10 +164,11 @@ void TIM1_BRK_UP_TRG_COM_IRQHandler(void){
 		
 		}
 
-		//set PWM
-		electric_angle = (7  * (motor.pos + d_raw_angle + conf.offset)) & 0x3FFF;
-		motor.V_alpha= Q15_Multiply(motor.Iq,  - fast_sin_q15_raw(electric_angle >> 5));
-		motor.V_beta = Q15_Multiply(motor.Iq,  fast_cos_q15_raw(electric_angle >> 5));
+		if(motor.mode != 0x0B){
+			electric_angle = (7  * (motor.pos + d_raw_angle + conf.offset)) & 0x3FFF;
+			motor.V_alpha= Q15_Multiply(motor.Iq,  - fast_sin_q15_raw(electric_angle >> 5));
+			motor.V_beta = Q15_Multiply(motor.Iq,  fast_cos_q15_raw(electric_angle >> 5));
+		}
 		set_PWM_level(motor.V_alpha, motor.V_beta);
 	}
 }
@@ -177,79 +183,96 @@ void USART2_IRQHandler(void){
     {
         LL_USART_ClearFlag_IDLE(USART2);
         LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_2); 
-				if(	CommandBuffer[BufferRecieve].Header == 0XAA && CommandBuffer[BufferRecieve].ID == conf.ID){
+				if(	CommandBuffer.Header == 0XAA && CommandBuffer.ID == conf.ID){
 				//Config mode, send a pack of config			
-					motor.mode = CommandBuffer[BufferRecieve].Command;
+					motor.mode = CommandBuffer.Command;
 				  switch(motor.mode){
 						//position mode
 						case 0XC2:
-							motor.target_pos = (CommandBuffer[BufferRecieve].Value > 16383) ? 16383 : (CommandBuffer[BufferRecieve].Value < 0) ? 0 : CommandBuffer[BufferRecieve].Value;
-							BufferRecieve = BufferRecieve ? 0 : 1;
-							BufferActivated = BufferActivated ? 0 : 1;
+							if(conf.p_edge || conf.n_edge){
+								motor.target_pos = (CommandBuffer.Value > conf.p_edge) ? conf.p_edge : (CommandBuffer.Value < conf.n_edge) ? conf.n_edge : CommandBuffer.Value;
+								}
+							else{
+								motor.target_pos = (CommandBuffer.Value > 16383) ? 16383 : (CommandBuffer.Value < 0) ? 0 : CommandBuffer.Value;
+							}
+							motor.mode = CommandBuffer.Command;
 							break;
 						//speed mode
 						case 0XC1:
-							motor.target_speed = Q15_Multiply(Q15_IRPM, CommandBuffer[BufferRecieve].Value);
-							BufferRecieve = BufferRecieve ? 0 : 1;
-							BufferActivated = BufferActivated ? 0 : 1;
+							motor.target_speed = Q15_Multiply(Q15_IRPM, CommandBuffer.Value);
+							motor.mode = CommandBuffer.Command;
 							break;
 						//Torque mode
 						case 0xC0:
-							BufferRecieve = BufferRecieve ? 0 : 1;
-							BufferActivated = BufferActivated ? 0 : 1;
+							motor.Uq = CommandBuffer.Value;
+							motor.mode = CommandBuffer.Command;
 							break;
-						
+						case 0xC7:
+							conf.m_zero = Read_encoder();
+							setZero();
+							break;
+						case 0xC8:
+							conf.n_edge = CommandBuffer.Value;
+							break;
+						case 0xC9:
+							conf.p_edge = CommandBuffer.Value;
+							break;
 						//ID config
 						case 0xF0:
-							conf.ID = CommandBuffer[BufferRecieve].Value & 0xFF;
+							conf.ID = CommandBuffer.Value & 0xFF;
 							break;
 						//offset config
 						case 0XF1:
-							conf.offset = CommandBuffer[BufferRecieve].Value & 0x3FFF;
+							conf.offset = CommandBuffer.Value & 0x3FFF;
 							break;
 						//K config
 						case 0xD0:
-							conf.Kp_pos = CommandBuffer[BufferRecieve].Value;
+							conf.Kp_pos = CommandBuffer.Value;
 							break;
 						case 0xD1:
-							conf.Ki_pos = CommandBuffer[BufferRecieve].Value;
+							conf.Ki_pos = CommandBuffer.Value;
 							break;
 						case 0xE0:
-							conf.Kp_spd = CommandBuffer[BufferRecieve].Value;
+							conf.Kp_spd = CommandBuffer.Value;
 							break;
 						case 0xE1:
-							conf.Kp_spd = CommandBuffer[BufferRecieve].Value;
+							conf.Kp_spd = CommandBuffer.Value;
 							break;
 						case 0xA0:
 							LL_TIM_DisableAllOutputs(TIM1);
-							LL_TIM_DisableIT_UPDATE(TIM1);
 							break;
 					  case 0xA1:
 							LL_TIM_EnableAllOutputs(TIM1);
-							LL_TIM_EnableIT_UPDATE(TIM1);
 							break;
 						//save Config
 						case 0xB0:
 							LL_TIM_DisableAllOutputs(TIM1);
-							LL_TIM_DisableIT_UPDATE(TIM1);
 							conf.Kp_pos = position.Kp;
 							conf.Ki_pos = position.Ki;
 							conf.Kp_spd = speed.Kp;
 							conf.Ki_spd = speed.Ki;
 							Save_MotorConf(&conf);
 							break;
+						case 0x0B:
+							motor.V_alpha = 18000;
+							motor.V_beta = 0;
+							motor.mode = CommandBuffer.Command;
+							break;
 						default:
 							break;
 					}
-
+					if(CommandBuffer.BookedData){	
+						LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_1);
+						LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_1, CommandBuffer.BookedData);
+						LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_1);
+					}
+					
 					LL_GPIO_TogglePin(GPIOA, LL_GPIO_PIN_1);
+					
 				}
-				LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_2, (uint32_t)(&CommandBuffer[BufferRecieve]));
         LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_2, 6);
         LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_2);
     }
-    
-
     if (LL_USART_IsActiveFlag_ORE(USART2))
 		{
         LL_USART_ClearFlag_ORE(USART2);

@@ -1,0 +1,25 @@
+./output/py32md3xx_hal_flash.o: \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Src\py32md3xx_hal_flash.c \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_hal.h \
+  ..\Inc\py32md3xx_hal_conf.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_hal_rcc.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_hal_def.h \
+  ..\..\..\Drivers\CMSIS\Device\PY32MD3xx\Include\py32md3xx.h \
+  ..\..\..\Drivers\CMSIS\Device\PY32MD3xx\Include\py32md320x8.h \
+  E:\Arm\packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include\core_cm0plus.h \
+  E:\Arm\Keil\ARM\ARMCLANG\Bin\..\include\stdint.h \
+  E:\Arm\packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include\cmsis_version.h \
+  E:\Arm\packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include\cmsis_compiler.h \
+  E:\Arm\packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include\cmsis_armclang.h \
+  E:\Arm\Keil\ARM\ARMCLANG\Bin\..\include\arm_acle.h \
+  E:\Arm\packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include\.\m-profile\cmsis_armclang_m.h \
+  ..\..\..\Drivers\CMSIS\Device\PY32MD3xx\Include\system_py32md3xx.h \
+  E:\Arm\Keil\ARM\ARMCLANG\Bin\..\include\stdio.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_hal_rcc_ex.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_hal_gpio.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_hal_gpio_ex.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_hal_cortex.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_hal_dma.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_hal_dma_ex.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_hal_flash.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_hal_pwr.h

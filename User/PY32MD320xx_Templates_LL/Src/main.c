@@ -39,16 +39,17 @@
 #define SPI1_CS_ENABLE()    LL_GPIO_ResetOutputPin(SPI1_CS_PORT, SPI1_CS_PIN)
 #define SPI1_CS_DISABLE()   LL_GPIO_SetOutputPin(SPI1_CS_PORT, SPI1_CS_PIN)
 /* Private variables ---------------------------------------------------------*/
-extern MotorParams motor;
-extern CommandStruct CommandBuffer[];
-extern MotorConf conf;
+extern CommandStruct CommandBuffer;
 extern PI_Controller speed;
 extern PI_Controller position;
+MotorParams motor = {0};
+MotorConf conf = {0};
 /* Private user code ---------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private function prototypes -----------------------------------------------*/
 static void APP_SystemClockConfig(void);
 static void APP_GPIOConfig(void);
+static void APP_ADCConfig(void);
 static void APP_SPI1Config(void);
 static void APP_USARTConfig(void);
 static void APP_DMAConfig(void);
@@ -56,23 +57,32 @@ static void APP_PWMChannelConfig(void);
 static void APP_TIM1BaseConfig(void);
 static void NVIC_Config(void);
 
-uint8_t flash_buffer[FLASH_PAGE_SIZE];
-
+uint32_t flash_buffer[FLASH_PAGE_SIZE / 4];
 
 
 
 void Save_MotorConf(const MotorConf *config){
 	LL_FLASH_Unlock(FLASH);
-	memset(flash_buffer, 0XFF, FLASH_PAGE_SIZE);
-	memcpy(flash_buffer, &conf, sizeof(MotorConf));
+	while(LL_FLASH_IsActiveFlag_BUSY(FLASH)==1);
 	LL_FLASH_EnableIT_EOP(FLASH);
-  LL_FLASH_EnablePageProgram(FLASH);
-	LL_FLASH_PageProgram(FLASH, FLASH_CONFIG_ADDR, (uint32_t*)flash_buffer);
-  while(LL_FLASH_IsActiveFlag_BUSY(FLASH)==1);
-  while(LL_FLASH_IsActiveFlag_EOP(FLASH)==0);
-  LL_FLASH_ClearFlag_EOP(FLASH);
-  LL_FLASH_DisableIT_EOP(FLASH);
-  LL_FLASH_DisablePageProgram(FLASH);
+	LL_FLASH_EnablePageErase(FLASH);
+	LL_FLASH_SetEraseAddress(FLASH, FLASH_CONFIG_ADDR);
+	while(LL_FLASH_IsActiveFlag_BUSY(FLASH)==1);
+	while(LL_FLASH_IsActiveFlag_EOP(FLASH)==0);
+	LL_FLASH_ClearFlag_EOP(FLASH);
+	LL_FLASH_DisableIT_EOP(FLASH);
+	LL_FLASH_DisablePageErase(FLASH);
+	memset(flash_buffer, 0, FLASH_PAGE_SIZE);
+	memcpy(flash_buffer, &conf, sizeof(MotorConf));
+	while(LL_FLASH_IsActiveFlag_BUSY(FLASH)==1);
+	LL_FLASH_EnableIT_EOP(FLASH);
+	LL_FLASH_EnablePageProgram(FLASH);
+	LL_FLASH_PageProgram(FLASH, FLASH_CONFIG_ADDR, flash_buffer);
+	while(LL_FLASH_IsActiveFlag_BUSY(FLASH)==1);
+	while(LL_FLASH_IsActiveFlag_EOP(FLASH)==0);
+	LL_FLASH_ClearFlag_EOP(FLASH);
+	LL_FLASH_DisableIT_EOP(FLASH);
+	LL_FLASH_DisablePageProgram(FLASH);
 	LL_FLASH_Lock(FLASH);
 }
 
@@ -101,30 +111,34 @@ int main(void)
   /* Configure system clock */
   APP_SystemClockConfig();
 	NVIC_Config();
-	
 	APP_GPIOConfig();
+	APP_ADCConfig();
 	APP_SPI1Config();
 	APP_USARTConfig();
-
-	 
 	APP_PWMChannelConfig();
 	APP_TIM1BaseConfig();
-	
+	motor.readHeader = 0XAB;
 	if(Load_MotorConf(&conf)){
 		conf.ID = 1;
+		conf.m_zero = 0X2C39;
+		conf.p_edge = 0;
+		conf.n_edge = 0;
 		conf.offset = 11975;
-		conf.Kp_pos = 1500;
+		conf.Kp_pos = 1800;
 		conf.Ki_pos = 0;
-		conf.Kp_spd = 110;
-		conf.Ki_spd = 9;
+		conf.Kp_spd = 130;
+		conf.Ki_spd = 10;
 		conf.magic_word = FLASH_MAGIC_WORD;
 	}
 	position.Kp = conf.Kp_pos;
 	position.Ki = conf.Ki_pos;
 	speed.Kp = conf.Kp_spd;
 	speed.Ki = conf.Ki_spd;
+	setZero();
 	LL_GPIO_ResetOutputPin(GPIOA, LL_GPIO_PIN_1);
 	LL_TIM_EnableIT_UPDATE(TIM1);
+	LL_TIM_EnableAllOutputs(TIM1);
+  LL_TIM_EnableCounter(TIM1);
   while (1)
   {	
   }
@@ -184,6 +198,49 @@ static void APP_GPIOConfig(void)
   LL_GPIO_Init(GPIOA,&GPIO_InitStruct);
 }
 
+/**
+  * @brief  ADC configuration function
+  * @param  None
+  * @retval None
+  */
+static void APP_ADCConfig(void){
+	
+		LL_GPIO_InitTypeDef GPIO_InitStruct = {0};
+    GPIO_InitStruct.Pin = LL_GPIO_PIN_0;
+    GPIO_InitStruct.Mode = LL_GPIO_MODE_ANALOG;
+    LL_GPIO_Init(GPIOA,&GPIO_InitStruct);
+		
+		LL_ADC_Reset(ADC1);
+		LL_APB1_GRP2_EnableClock(LL_APB1_GRP2_PERIPH_ADC1);
+		
+		//Calibration
+		__IO uint32_t backup_setting_adc_dma_transfer = 0;
+		backup_setting_adc_dma_transfer = LL_ADC_REG_GetDMATransfer(ADC1);
+		LL_ADC_REG_SetDMATransfer(ADC1, LL_ADC_REG_DMA_TRANSFER_NONE);
+    LL_ADC_StartCalibration(ADC1);
+		while (LL_ADC_IsCalibrationOnGoing(ADC1) != 0);
+		LL_mDelay(1);
+    LL_ADC_REG_SetDMATransfer(ADC1, backup_setting_adc_dma_transfer);
+		
+		
+		LL_ADC_SetCommonPathInternalCh(__LL_ADC_COMMON_INSTANCE(ADC1), LL_ADC_PATH_INTERNAL_NONE);
+		LL_ADC_SetClock(ADC1, LL_ADC_CLOCK_SYNC_PCLK_DIV8);
+		LL_ADC_SetResolution(ADC1, LL_ADC_RESOLUTION_12B);
+		LL_ADC_SetDataAlignment(ADC1, LL_ADC_DATA_ALIGN_RIGHT);
+		LL_ADC_SetLowPowerMode(ADC1, LL_ADC_LP_MODE_NONE);
+		LL_ADC_SetSamplingTimeCommonChannels(ADC1, LL_ADC_SAMPLINGTIME_3CYCLES_5);
+		LL_ADC_REG_SetTriggerSource(ADC1, LL_ADC_REG_TRIG_EXT_TIM1_TRGO);
+		LL_ADC_REG_SetTriggerEdge(ADC1, LL_ADC_REG_TRIG_EXT_RISING);
+		LL_ADC_REG_SetContinuousMode(ADC1, LL_ADC_REG_CONV_SINGLE);
+		LL_ADC_REG_SetDMATransfer(ADC1, LL_ADC_REG_DMA_TRANSFER_UNLIMITED);
+		LL_ADC_REG_SetOverrun(ADC1, LL_ADC_REG_OVR_DATA_OVERWRITTEN);
+		LL_ADC_REG_SetSequencerDiscont(ADC1, LL_ADC_REG_SEQ_DISCONT_DISABLE);
+		LL_ADC_REG_SetSequencerChannels(ADC1, LL_ADC_CHANNEL_0);
+		LL_ADC_Enable(ADC1);
+		LL_mDelay(1);
+		
+		LL_ADC_REG_StartConversion(ADC1);
+}
 /**
   * @brief  SPI1 configuration function
   * @param  None
@@ -270,12 +327,6 @@ static void APP_USARTConfig(void){
     GPIO_InitStruct.Pin = LL_GPIO_PIN_5;
     GPIO_InitStruct.Alternate = LL_GPIO_AF9_USART2;
     LL_GPIO_Init(GPIOA,&GPIO_InitStruct);
-    
-    /* Set USART1 interrupt priority */
-    NVIC_SetPriority(USART2_IRQn,0);
-    /* Enable USART1 interrupt */
-    NVIC_EnableIRQ(USART2_IRQn);
-
   /* USART configuration */
 		LL_USART_InitTypeDef USART_InitStruct = {0};
 		USART_InitStruct.BaudRate = 115200;
@@ -324,18 +375,41 @@ static void APP_DMAConfig(void){
                       LL_DMA_PDATAALIGN_BYTE | \
                       LL_DMA_MDATAALIGN_BYTE | \
                       LL_DMA_PRIORITY_LOW);
+  /* Configure DMA channel LL_DMA_CHANNEL_2 for ADC */	
+	
+		LL_DMA_ConfigTransfer(DMA1, LL_DMA_CHANNEL_3, LL_DMA_DIRECTION_PERIPH_TO_MEMORY | \
+                      LL_DMA_MODE_CIRCULAR                  | \
+                      LL_DMA_PERIPH_NOINCREMENT  | \
+                      LL_DMA_MEMORY_NOINCREMENT  | \
+                      LL_DMA_PDATAALIGN_HALFWORD | \
+                      LL_DMA_MDATAALIGN_HALFWORD | \
+                      LL_DMA_PRIORITY_HIGH);
+											
 	  LL_SYSCFG_SetDMARemap_CH1(LL_SYSCFG_DMA_MAP_USART2_TX);
     LL_SYSCFG_SetDMARemap_CH2(LL_SYSCFG_DMA_MAP_USART2_RX);
+		LL_SYSCFG_SetDMARemap_CH3(LL_SYSCFG_DMA_MAP_ADC);
 		
 		
-		
-		
-		LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_2, (uint32_t)&CommandBuffer[0]);
+		LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_1, (uint32_t)&motor.readHeader);
+		LL_DMA_SetPeriphAddress(DMA1, LL_DMA_CHANNEL_1, (uint32_t)&(USART2->DR));
+		LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_2, (uint32_t)&CommandBuffer);
 		LL_DMA_SetPeriphAddress(DMA1, LL_DMA_CHANNEL_2, (uint32_t)&(USART2->DR));
+		LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_3, (uint32_t)&motor.current);
+		LL_DMA_SetPeriphAddress(DMA1, LL_DMA_CHANNEL_3, (uint32_t)&(ADC1->DR));
+		
+
+		LL_USART_ClearFlag_ORE(USART2);
+		LL_USART_ClearFlag_TC(USART2);
+		
+		LL_USART_EnableDMAReq_TX(USART2);
+		LL_USART_EnableDMAReq_RX(USART2);
+	
 		LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_2, 6);
 		LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_2);
-		LL_USART_ClearFlag_ORE(USART2);
-		LL_USART_EnableDMAReq_RX(USART2);
+		
+		LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_3, 1);
+		LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_3);
+
 }
 /**
   * @brief  Configure TIM1 PWM related GPIO
@@ -409,16 +483,11 @@ static void APP_TIM1BaseConfig(void)
   TIM1CountInit.CounterMode         = LL_TIM_COUNTERMODE_CENTER_DOWN;      /* Up counting mode */
   TIM1CountInit.Prescaler           = 0;                      /* Prescaler value: 2400 */
   TIM1CountInit.Autoreload          = PWM_TOP;                           /* Repetition counter value: 0 */
-  TIM1CountInit.RepetitionCounter 	= 0;
+  TIM1CountInit.RepetitionCounter 	= 1;
 	
   /* Initialize TIM1 */
   LL_TIM_Init(TIM1,&TIM1CountInit);
-
-  /* Enable main output */
-  LL_TIM_EnableAllOutputs(TIM1);
-
-  /* Enable TIM1 counter */
-  LL_TIM_EnableCounter(TIM1);
+	LL_TIM_SetTriggerOutput(TIM1,LL_TIM_TRGO_UPDATE);
 }
 
 /**
@@ -426,15 +495,13 @@ static void APP_TIM1BaseConfig(void)
   * @param  None
   * @retval None
   */
+
+
 static void NVIC_Config(void){
 	
 	NVIC_SetPriority(TIM1_BRK_UP_TRG_COM_IRQn, 0);
 	NVIC_EnableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
-  //NVIC_SetPriority(DMA1_Channel1_IRQn, 1);
-  //NVIC_EnableIRQ(DMA1_Channel1_IRQn);
-  //NVIC_SetPriority(DMA1_Channel2_3_IRQn, 1);
-  //NVIC_EnableIRQ(DMA1_Channel2_3_IRQn);
-	NVIC_SetPriority(USART2_IRQn, 2);
+	NVIC_SetPriority(USART2_IRQn, 0);
 	NVIC_EnableIRQ(USART2_IRQn);
 }
 

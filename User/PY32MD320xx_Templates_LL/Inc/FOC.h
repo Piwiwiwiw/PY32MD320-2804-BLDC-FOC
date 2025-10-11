@@ -16,5 +16,5 @@
 
 uint16_t Read_encoder(void);
 void set_PWM_level(Q15 Ualpha, Q15 Ubeta);
-
+void setZero(void);
 #endif

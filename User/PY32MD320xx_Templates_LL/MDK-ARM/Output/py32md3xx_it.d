@@ -22,6 +22,9 @@
   ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_ll_spi.h \
   ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_ll_tim.h \
   ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_ll_usart.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_ll_adc.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_ll_bus.h \
   ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_ll_flash.h \
+  ..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc\py32md3xx_ll_i2c.h \
   ..\Inc\FOC.h ..\Inc\main.h ..\Inc\trig_q15_func.h \
   ..\Inc\py32md3xx_it.h ..\Inc\FOC.h

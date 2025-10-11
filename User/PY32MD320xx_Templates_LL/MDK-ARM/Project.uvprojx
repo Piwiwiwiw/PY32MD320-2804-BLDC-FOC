@@ -338,7 +338,7 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>PY32MD320x8,USE_FULL_LL_DRIVER</Define>
+              <Define>PY32MD320x8,USE_FULL_LL_DRIVER,USE_FULL_HAL_DRIVER</Define>
               <Undefine></Undefine>
               <IncludePath>..\Inc;..\..\..\Drivers\PY32MD3xx_HAL_Driver\Inc;..\..\..\Drivers\CMSIS\Device\PY32MD3xx\Include</IncludePath>
             </VariousControls>

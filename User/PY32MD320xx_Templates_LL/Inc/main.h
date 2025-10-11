@@ -52,7 +52,9 @@ extern "C" {
 #include "py32md3xx_ll_spi.h"
 #include "py32md3xx_ll_tim.h"
 #include "py32md3xx_ll_usart.h"
+#include "py32md3xx_ll_adc.h"
 #include "py32md3xx_ll_flash.h"
+#include "py32md3xx_ll_i2c.h"
 #include "FOC.h"
 #if defined(USE_FULL_ASSERT)
 #include "py32_assert.h"
@@ -78,12 +80,18 @@ typedef struct {
 
 typedef struct {
 		uint8_t mode;
-		uint16_t readHeader;
+		uint8_t readHeader;
 		uint16_t pos;
 		int16_t speed;
+		uint16_t current;
+		int32_t total_pos;
+		uint16_t pos_Prev;
+		int32_t total_pos_prev;
+	  int16_t step_dpos;
 		int16_t target_pos;
 		int16_t target_speed;
 		int16_t Iq;
+		int16_t	Uq;
 		int16_t V_alpha;
 		int16_t V_beta;
 
@@ -94,6 +102,9 @@ typedef struct {
 
 typedef struct {
     uint8_t ID;  // 1 ??
+		int16_t m_zero;
+		int16_t p_edge;
+		int16_t n_edge;
     uint16_t offset;
 		int16_t Kp_spd;
 		int16_t Ki_spd;
